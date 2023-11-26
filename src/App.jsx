@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { data } from "./data";
-import { v4 as uuidv4 } from "uuid";
+import { addUser, deleteUserByEmail, getUserByEmail, getUsers, deleteAllUsers } from "./db";
+
+const invalidPasswordErrorMsg = "Password must be at least 6 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.";
 
 const UserChallenge = () => {
   const [formData, setFormData] = useState({
@@ -8,47 +9,31 @@ const UserChallenge = () => {
     email: "",
     password: "",
   });
-  const [fakeId, setFakeId] = useState("");
 
-  const [users, setUsers] = useState(data);
-
-  const generateFakeId = () => {
-    const newFakeId = uuidv4();
-    setFakeId(newFakeId);
-    return newFakeId;
-  };
+  const [users, setUsers] = useState(getUsers());
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setErrorMsg("");
     const { name, email, password } = formData;
 
-    if (!name || !email || !password) return;
+    if (!name) setErrorMsg("Name is required");
+    if (!email) setErrorMsg("Email is required");
+    const userExist = getUserByEmail(email);
+    if (userExist) setErrorMsg("User with email exist");
+    if (!password)setErrorMsg("Password is required");
 
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
-    if (!password.match(passwordRegex)) {
-      setFormData({ ...formData, password: "" });
-      return;
-    }
-
-    const newUser = { id: generateFakeId(), name, email, password };
-    const updatedUser = [...users, newUser];
-    setUsers(updatedUser);
+    if (!password.match(passwordRegex)) setErrorMsg(invalidPasswordErrorMsg);
+    if (errorMsg) return;
+    const newUser = { name, email, password };
+    addUser(newUser);
+    setUsers(getUsers());
     setFormData({ name: "", email: "", password: "" });
-    console.log(password);
-     console.log(updatedUser);
     // add user to the list of existing ones and update state with new array
   };
-  //this function below removes each users
-  const removeItems = (itemId) => {
-    const UserRemoved = users.filter((user) => user.id !== itemId);
-    setUsers(UserRemoved);
-    console.log(UserRemoved);
-  };
 
-  //this function below removes all the users
-  const clearAllItems = () => {
-    setUsers([]);
-  };
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
@@ -100,11 +85,7 @@ const UserChallenge = () => {
             />
             {/* Password restrictions */}
             {formData.password && (
-              <p style={{ fontSize: "10px", color: "red" }}>
-                Password must be at least 6 characters long and include at least
-                one uppercase letter, one lowercase letter, one number, and one
-                special character.
-              </p>
+              <p style={{ fontSize: "10px", color: "red" }}>{errorMsg}</p>
             )}
           </div>
 
@@ -113,12 +94,10 @@ const UserChallenge = () => {
           </button>
         </form>
 
- 
-
         {users.length === 0 ? (
           <h2>No user available</h2>
         ) : (
-          < >
+          <>
             {users.map((person) => {
               const { id, name, email } = person;
               return (
@@ -129,7 +108,10 @@ const UserChallenge = () => {
                   <button
                     style={{ marginBottom: "2rem" }}
                     className="btn"
-                    onClick={() => removeItems(id)}
+                    onClick={() => {
+                      deleteUserByEmail(email);
+                      setUsers(getUsers());
+                    }}
                   >
                     Remove User
                   </button>
@@ -140,7 +122,10 @@ const UserChallenge = () => {
               style={{ maxWidth: "600px", marginBottom: "2rem" }}
               type="button"
               className="btn btn-block"
-              onClick={clearAllItems}
+              onClick={() => {
+                deleteAllUsers();
+                setUsers(getUsers());
+              }}
             >
               clear all
             </button>
